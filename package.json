@@ -15,6 +15,7 @@
   "dependencies": {
     "@google/genai": "^1.10.0",
     "@odysseyml/odyssey": "^1.0.0",
+    "busboy": "^1.6.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "helmet": "^8.1.0",

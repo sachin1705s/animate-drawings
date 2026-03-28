@@ -207,7 +207,7 @@ function App() {
       <header className="hero">
         <div>
           <p className="eyebrow">Make your drawing come alive 🎬</p>
-          <h1>Turn your doodles into real moving characters in seconds.</h1>
+          <h1>make your doodles in real worlds</h1>
           <p className="subhead">Draw it. Upload it. Watch it move.</p>
         </div>
       </header>
