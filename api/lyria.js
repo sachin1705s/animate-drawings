@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     const response = await ai.models.generateContent({
       model: LYRIA_MODEL,
       contents: [{ role: 'user', parts: [{ text: musicPrompt }] }],
-      generationConfig: {
+      config: {
         responseModalities: ['AUDIO', 'TEXT'],
       },
     });

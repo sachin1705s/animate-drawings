@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Odyssey } from '@odysseyml/odyssey';
 import './App.css';
 
@@ -17,31 +17,13 @@ type GeneratedImage = {
   previewUrl: string;
 };
 
-type ImageAnalysis = {
-  place: string;
-  story: string;
-  musicPrompt: string;
-};
-
 function App() {
   const [selectedStyle, setSelectedStyle] = useState<(typeof STYLE_OPTIONS)[number]['id']>('realism');
   const [drawingFile, setDrawingFile] = useState<File | null>(null);
   const [generateStatus, setGenerateStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<GeneratedImage | null>(null);
-  const [generatedImageBase64, setGeneratedImageBase64] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
-  const [audioStatus, setAudioStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [audioError, setAudioError] = useState<string | null>(null);
-  const [musicUrl, setMusicUrl] = useState<string | null>(null);
-  const [narrationUrl, setNarrationUrl] = useState<string | null>(null);
-  const [autoPlayRequested, setAutoPlayRequested] = useState(false);
-  const [audioStarted, setAudioStarted] = useState(false);
-  const [generatedBase64, setGeneratedBase64] = useState<string>('');
-  const [generatedMime, setGeneratedMime] = useState<string>('image/png');
   const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [storyText, setStoryText] = useState<string>('');
-  const [musicPrompt, setMusicPrompt] = useState<string>('');
   const [audioStatus, setAudioStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [audioError, setAudioError] = useState<string | null>(null);
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
@@ -54,8 +36,6 @@ function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const odysseyClientRef = useRef<Odyssey | null>(null);
   const connectingRef = useRef(false);
-  const musicAudioRef = useRef<HTMLAudioElement | null>(null);
-  const narrationAudioRef = useRef<HTMLAudioElement | null>(null);
   const musicAudioRef = useRef<HTMLAudioElement | null>(null);
   const narrationAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -96,113 +76,6 @@ function App() {
     };
   }, [musicUrl, narrationUrl]);
 
-  useEffect(() => {
-    if (musicAudioRef.current) {
-      musicAudioRef.current.load();
-    }
-  }, [musicUrl]);
-
-  useEffect(() => {
-    if (narrationAudioRef.current) {
-      narrationAudioRef.current.load();
-    }
-  }, [narrationUrl]);
-
-  useEffect(() => {
-    if (!autoPlayRequested || audioStarted || !musicUrl || !narrationUrl) return;
-    void startAudioPlayback();
-  }, [autoPlayRequested, audioStarted, musicUrl, narrationUrl]);
-
-  function base64ToBlob(base64: string, mimeType: string) {
-    const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    return new Blob([buffer], { type: mimeType });
-  }
-
-  async function startAudioPlayback() {
-    if (!musicAudioRef.current || !narrationAudioRef.current) return;
-    musicAudioRef.current.volume = 0.6;
-    narrationAudioRef.current.volume = 1.0;
-    try {
-      await Promise.allSettled([
-        musicAudioRef.current.play(),
-        narrationAudioRef.current.play(),
-      ]);
-      setAudioStarted(true);
-    } catch {
-      // ignore autoplay issues
-    }
-  }
-
-  async function buildSoundForImage(imageBase64: string, mimeType: string) {
-    setAudioStatus('loading');
-    setAudioError(null);
-    setAnalysis(null);
-    setAutoPlayRequested(false);
-    setAudioStarted(false);
-    if (musicUrl) URL.revokeObjectURL(musicUrl);
-    if (narrationUrl) URL.revokeObjectURL(narrationUrl);
-    setMusicUrl(null);
-    setNarrationUrl(null);
-
-    try {
-      const analysisRes = await fetch('/api/analyze-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, mimeType }),
-      });
-      const analysisData = await analysisRes.json();
-      if (!analysisRes.ok) {
-        throw new Error(analysisData?.error || 'Image analysis failed.');
-      }
-      setAnalysis(analysisData);
-
-      const [musicRes, narrRes] = await Promise.all([
-        fetch('/api/lyria', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ musicPrompt: analysisData.musicPrompt }),
-        }),
-        fetch('/api/narrate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ storyText: analysisData.story }),
-        }),
-      ]);
-
-      const musicData = await musicRes.json();
-      if (!musicRes.ok) {
-        throw new Error(musicData?.error || 'Music generation failed.');
-      }
-      const narrData = await narrRes.json();
-      if (!narrRes.ok) {
-        throw new Error(narrData?.error || 'Narration failed.');
-      }
-
-      const musicBlob = base64ToBlob(musicData.audioBase64, musicData.mimeType || 'audio/mpeg');
-      const narrationBlob = base64ToBlob(narrData.audioBase64, narrData.mimeType || 'audio/wav');
-      setMusicUrl(URL.createObjectURL(musicBlob));
-      setNarrationUrl(URL.createObjectURL(narrationBlob));
-      setAudioStatus('ready');
-    } catch (err) {
-      setAudioStatus('error');
-      setAudioError(err instanceof Error ? err.message : 'Audio generation failed.');
-    }
-  }
-
-  useEffect(() => {
-    return () => {
-      if (musicUrl) URL.revokeObjectURL(musicUrl);
-      if (narrationUrl) URL.revokeObjectURL(narrationUrl);
-    };
-  }, [musicUrl, narrationUrl]);
-
-  useEffect(() => {
-    if (!pendingPlayback) return;
-    if (odysseyStatus !== 'streaming') return;
-    if (!musicUrl || !narrationUrl) return;
-    void startAudioPlayback();
-    setPendingPlayback(false);
-  }, [pendingPlayback, odysseyStatus, musicUrl, narrationUrl]);
 
   async function handleGenerate() {
     if (!drawingFile) return;
@@ -225,14 +98,11 @@ function App() {
       const mimeType = data?.mimeType || 'image/png';
       const base64 = data?.imageBase64 || '';
       if (!base64) throw new Error('No image returned.');
-      const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([buffer], { type: mimeType });
+      const blob = base64ToBlob(base64, mimeType);
       const previewUrl = URL.createObjectURL(blob);
       setGeneratedImage({ blob, mimeType, previewUrl });
-      setGeneratedBase64(base64);
-      setGeneratedMime(mimeType);
       setGenerateStatus('done');
-      await runAnalysisAndAudio(base64, mimeType);
+      void runAnalysisAndAudio(base64, mimeType);
     } catch (err) {
       setGenerateStatus('error');
       setGenerateError(err instanceof Error ? err.message : 'Image generation failed.');
@@ -245,8 +115,6 @@ function App() {
     setAudioError(null);
     setMusicUrl(null);
     setNarrationUrl(null);
-    setStoryText('');
-    setMusicPrompt('');
 
     try {
       const analysisRes = await fetch('/api/analyze-image', {
@@ -259,8 +127,6 @@ function App() {
         throw new Error(analysisData?.error || 'Analysis failed.');
       }
       setAnalysisStatus('done');
-      setStoryText(analysisData.story || '');
-      setMusicPrompt(analysisData.musicPrompt || '');
 
       const [musicRes, narrationRes] = await Promise.all([
         fetch('/api/lyria', {
@@ -299,11 +165,10 @@ function App() {
     return new Blob([buffer], { type: mimeType });
   }
 
-  async function startAudioPlayback() {
+  const startAudioPlayback = useCallback(async () => {
     if (!musicUrl || !narrationUrl) return;
     if (!musicAudioRef.current) {
       musicAudioRef.current = new Audio(musicUrl);
-      musicAudioRef.current.loop = true;
       musicAudioRef.current.volume = 0.5;
     } else {
       musicAudioRef.current.src = musicUrl;
@@ -321,7 +186,15 @@ function App() {
     } catch {
       // Autoplay restrictions may block; user can restart by clicking Start again.
     }
-  }
+  }, [musicUrl, narrationUrl]);
+
+  useEffect(() => {
+    if (!pendingPlayback) return;
+    if (odysseyStatus !== 'streaming') return;
+    if (!musicUrl || !narrationUrl) return;
+    void startAudioPlayback();
+    setPendingPlayback(false);
+  }, [pendingPlayback, odysseyStatus, musicUrl, narrationUrl, startAudioPlayback]);
 
   async function connectOdyssey() {
     if (connectingRef.current) return;
@@ -343,7 +216,7 @@ function App() {
         videoRef.current.srcObject = mediaStream;
       }
       setOdysseyStatus('connected');
-    } catch (err) {
+    } catch {
       setOdysseyStatus('error');
     } finally {
       connectingRef.current = false;
@@ -370,7 +243,7 @@ function App() {
       } else {
         setPendingPlayback(true);
       }
-    } catch (err) {
+    } catch {
       setOdysseyStatus('error');
     }
   }
@@ -380,7 +253,16 @@ function App() {
     try {
       await odysseyClientRef.current.endStream();
       setOdysseyStatus('connected');
-    } catch (err) {
+      if (musicAudioRef.current) {
+        musicAudioRef.current.pause();
+        musicAudioRef.current.currentTime = 0;
+      }
+      if (narrationAudioRef.current) {
+        narrationAudioRef.current.pause();
+        narrationAudioRef.current.currentTime = 0;
+      }
+      setPendingPlayback(false);
+    } catch {
       setOdysseyStatus('error');
     }
   }
@@ -416,15 +298,20 @@ function App() {
       URL.revokeObjectURL(generatedImage.previewUrl);
     }
     setGeneratedImage(null);
-    setGeneratedBase64('');
-    setGeneratedMime('image/png');
     setAnalysisStatus('idle');
     setAudioStatus('idle');
     setAudioError(null);
     setMusicUrl(null);
     setNarrationUrl(null);
-    setStoryText('');
-    setMusicPrompt('');
+    if (musicAudioRef.current) {
+      musicAudioRef.current.pause();
+      musicAudioRef.current.currentTime = 0;
+    }
+    if (narrationAudioRef.current) {
+      narrationAudioRef.current.pause();
+      narrationAudioRef.current.currentTime = 0;
+    }
+    setPendingPlayback(false);
   }
 
 

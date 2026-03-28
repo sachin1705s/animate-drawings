@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     const response = await ai.models.generateContent({
       model: TTS_MODEL,
       contents: [{ role: 'user', parts: [{ text: storyText }] }],
-      generationConfig: {
+      config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
