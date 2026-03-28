@@ -26,9 +26,6 @@ function App() {
 
   const [odysseyStatus, setOdysseyStatus] = useState<OdysseyStatus>('idle');
   const [odysseyApiKey, setOdysseyApiKey] = useState<string | null>(null);
-  const [midPrompt, setMidPrompt] = useState<string>('');
-  const [midPromptStatus, setMidPromptStatus] = useState<'idle' | 'sending' | 'error'>('idle');
-  const [midPromptError, setMidPromptError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const odysseyClientRef = useRef<Odyssey | null>(null);
@@ -143,21 +140,6 @@ function App() {
     }
   }
 
-  async function handleMidPrompt() {
-    if (!odysseyClientRef.current) return;
-    const prompt = midPrompt.trim();
-    if (!prompt) return;
-    setMidPromptStatus('sending');
-    setMidPromptError(null);
-    try {
-      await odysseyClientRef.current.interact({ prompt });
-      setMidPromptStatus('idle');
-    } catch (err) {
-      setMidPromptStatus('error');
-      setMidPromptError(err instanceof Error ? err.message : 'Failed to send prompt.');
-    }
-  }
-
   async function handleEndStream() {
     if (!odysseyClientRef.current) return;
     try {
@@ -265,31 +247,9 @@ function App() {
               End Stream
             </button>
           </div>
-          <div className="mid-prompt">
-            <label>
-              Mid‑stream prompt
-              <input
-                type="text"
-                placeholder="e.g., make it wave"
-                value={midPrompt}
-                onChange={(e) => setMidPrompt(e.target.value)}
-              />
-            </label>
-            <button
-              className="ghost"
-              onClick={handleMidPrompt}
-              disabled={odysseyStatus !== 'streaming' || midPromptStatus === 'sending'}
-            >
-              {midPromptStatus === 'sending' ? 'Sending…' : 'Send Prompt'}
-            </button>
-          </div>
-          {midPromptError && <p className="status-error">{midPromptError}</p>}
         </section>
       </main>
 
-      <footer className="footer">
-        <p>Prompt is fixed to “animate it”. Generated images are not stored.</p>
-      </footer>
     </div>
   );
 }
