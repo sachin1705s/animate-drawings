@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #f4efe6;
+  --bg-alt: #e9f0f6;
+  --ink: #141416;
+  --muted: #4c4b55;
+  --panel: #ffffff;
+  --accent: #d06b1c;
+  --accent-strong: #9b4a0d;
+  --border: #d7d1c8;
+  --shadow: 0 24px 60px rgba(20, 20, 22, 0.12);
+  --radius-lg: 28px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(208, 107, 28, 0.15), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(20, 126, 149, 0.12), transparent 40%),
+    linear-gradient(120deg, var(--bg), var(--bg-alt));
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Fraunces', serif;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2.6rem, 4vw, 4.2rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+button,
+select,
+input {
+  font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+video {
+  width: 100%;
+  border-radius: var(--radius-md);
+  background: #090909;
+}
