@@ -196,6 +196,11 @@ select {
   font-size: 0.95rem;
 }
 
+.hint {
+  color: #7c6c5e;
+  font-size: 0.9rem;
+}
+
 .video-frame {
   position: relative;
 }
