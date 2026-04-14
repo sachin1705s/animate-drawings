@@ -476,7 +476,7 @@ function App() {
             <button className="primary" onClick={handleStartAnimation} disabled={!canAnimate}>
               Start Animation
             </button>
-            <button className="ghost" onClick={handleEndStream} disabled={odysseyStatus !== 'streaming'}>
+            <button className="ghost" onClick={() => void handleEndStream()} disabled={odysseyStatus !== 'streaming'}>
               End Stream
             </button>
           </div>
