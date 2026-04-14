@@ -29,7 +29,10 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (process.env.NODE_ENV !== 'production' && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin)
+      ) {
         return callback(null, true);
       }
       if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
@@ -86,6 +89,28 @@ function parseGeminiError(err) {
 function isRetryableGeminiError(info) {
   const text = String(info?.status || '') + ' ' + String(info?.message || '');
   return text.includes('UNAVAILABLE') || text.includes('503') || text.includes('RESOURCE_EXHAUSTED');
+}
+
+function isSafetyRejection(info) {
+  const text = `${String(info?.status || '')} ${String(info?.message || '')} ${String(info?.code || '')}`.toLowerCase();
+  return (
+    text.includes('safety') ||
+    text.includes('unsafe') ||
+    text.includes('blocked') ||
+    text.includes('policy') ||
+    text.includes('nsfw') ||
+    text.includes('sexually explicit')
+  );
+}
+
+function getBlockedReason(response) {
+  const promptFeedbackReason = response?.promptFeedback?.blockReason;
+  if (promptFeedbackReason) return String(promptFeedbackReason);
+
+  const candidateReason = response?.candidates?.find((candidate) => candidate?.finishReason)?.finishReason;
+  if (candidateReason) return String(candidateReason);
+
+  return '';
 }
 
 async function sleep(ms) {
@@ -178,6 +203,13 @@ app.post('/api/nano-banana', uploadImage.single('image'), async (req, res) => {
     const parts = response?.candidates?.[0]?.content?.parts || [];
     const imagePart = parts.find((part) => part.inlineData?.data);
     if (!imagePart?.inlineData?.data) {
+      const blockedReason = getBlockedReason(response);
+      if (isSafetyRejection({ message: blockedReason })) {
+        return res.status(422).json({
+          error: 'This image was rejected by the safety filter. Try a different image.',
+          reason: 'safety',
+        });
+      }
       return res.status(500).json({ error: 'No image returned from Gemini.' });
     }
 
@@ -186,6 +218,12 @@ app.post('/api/nano-banana', uploadImage.single('image'), async (req, res) => {
     return res.json({ imageBase64: outBase64, mimeType: outMime });
   } catch (err) {
     const info = parseGeminiError(err);
+    if (isSafetyRejection(info)) {
+      return res.status(422).json({
+        error: 'This image was rejected by the safety filter. Try a different image.',
+        reason: 'safety',
+      });
+    }
     const message = info?.message || 'Image generation failed.';
     const status = isRetryableGeminiError(info) ? 503 : 500;
     return res.status(status).json({ error: message });
